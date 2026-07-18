@@ -1,0 +1,10 @@
+import sys
+from pdf_service import extract_text_from_pdf
+from llm_service import generate_questions
+
+if __name__ == "__main__":
+    pdf_path = sys.argv[1] if len(sys.argv) > 1 else "../sample_notes/python_oop_basics.pdf"
+    text = extract_text_from_pdf(pdf_path)
+    questions = generate_questions(text)
+    for q in questions:
+        print(q)
