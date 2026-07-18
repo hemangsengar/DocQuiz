@@ -1,4 +1,4 @@
-# DocQuiz setup — Windows PowerShell backup for when Git Bash isn't available.
+# DocQuiz setup - Windows PowerShell backup for when Git Bash isn't available.
 # Run from the repo folder with:
 #   powershell -ExecutionPolicy Bypass -File setup.ps1
 
