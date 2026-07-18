@@ -13,13 +13,48 @@ case "$OS_NAME" in
 esac
 echo "Detected platform: $PLATFORM"
 
-# 2. Find a Python interpreter
-if command -v python3 >/dev/null 2>&1; then
-    PYTHON=python3
-elif command -v python >/dev/null 2>&1; then
-    PYTHON=python
-else
-    echo "Python not found. Install Python 3.10+ from https://python.org and re-run this script."
+print_python_install_help() {
+    echo ""
+    echo "Python 3.10+ is required but was not found (or is too old)."
+    echo "Install it with the command for your system, then re-run this script:"
+    case "$PLATFORM" in
+        windows)
+            echo "  winget install -e --id Python.Python.3.12"
+            echo "  (or download from https://python.org — tick 'Add python.exe to PATH')"
+            ;;
+        mac)
+            echo "  brew install python@3.12"
+            echo "  (no Homebrew? download from https://python.org)"
+            ;;
+        linux)
+            echo "  sudo apt install python3 python3-venv python3-pip    # Debian/Ubuntu"
+            echo "  sudo dnf install python3                             # Fedora"
+            ;;
+        *)
+            echo "  Download from https://python.org"
+            ;;
+    esac
+}
+
+# 2. Find a Python interpreter (3.10+)
+PYTHON=""
+for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        # Reject the Windows Store stub, which exists but isn't real Python
+        if version_output=$("$candidate" --version 2>&1) && [[ "$version_output" == Python\ 3.* ]]; then
+            minor=$(echo "$version_output" | sed 's/Python 3\.\([0-9]*\).*/\1/')
+            if [ "$minor" -ge 10 ] 2>/dev/null; then
+                PYTHON="$candidate"
+                break
+            else
+                echo "Found $version_output at '$candidate' — too old, need 3.10+."
+            fi
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    print_python_install_help
     exit 1
 fi
 echo "Using $($PYTHON --version)"
@@ -33,11 +68,11 @@ else
     echo "uv not found, using standard venv + pip..."
     "$PYTHON" -m venv .venv
     if [ "$PLATFORM" = "windows" ]; then
-        ./.venv/Scripts/pip.exe install --upgrade pip
-        ./.venv/Scripts/pip.exe install -r requirements.txt
+        ./.venv/Scripts/python.exe -m pip install --upgrade pip
+        ./.venv/Scripts/python.exe -m pip install -r requirements.txt
     else
-        ./.venv/bin/pip install --upgrade pip
-        ./.venv/bin/pip install -r requirements.txt
+        ./.venv/bin/python -m pip install --upgrade pip
+        ./.venv/bin/python -m pip install -r requirements.txt
     fi
 fi
 

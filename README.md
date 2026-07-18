@@ -21,7 +21,24 @@ cd docquiz
 ```
 
 This creates a virtual environment and installs dependencies (using `uv` if
-you have it installed, otherwise standard `venv` + `pip`).
+you have it installed, otherwise standard `venv` + `pip`). It also checks
+your Python is 3.10+ and tells you the exact install command for your OS if
+it isn't.
+
+**Windows without Git Bash?** Use the PowerShell backup instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
+**Both scripts fail?** Manual fallback — three commands:
+
+```bash
+python -m venv .venv                                # or python3
+./.venv/bin/pip install -r requirements.txt         # Mac/Linux
+.venv\Scripts\pip install -r requirements.txt       # Windows
+cp .env.example .env                                # Windows: copy .env.example .env
+```
 
 Activate the environment:
 
