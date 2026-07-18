@@ -1,9 +1,10 @@
 # DocQuiz
 
-Upload study notes (PDF) → generate an AI-powered quiz. Day 1: we build the two
-core building blocks — PDF text extraction and LLM question generation — as
-plain Python. The full web app (FastAPI, database, adaptive engine, frontend)
-comes on Day 2.
+Upload study notes (PDF) → generate an AI-powered quiz. Day 1: we build the
+three core building blocks — PDF text extraction, chunking notes into
+sections, and LLM question generation that spreads across those sections —
+as plain Python. The full web app (FastAPI, database, adaptive engine,
+frontend) comes on Day 2.
 
 ## Prerequisites
 
@@ -46,7 +47,8 @@ GROQ_API_KEY=your_actual_key
 
 ## Running it
 
-Once `pdf_service.py` and `llm_service.py` are filled in:
+Once `pdf_service.py` (both `extract_text_from_pdf` and `chunk_text`) and
+`llm_service.py` are filled in:
 
 ```bash
 python starter/main.py sample_notes/python_oop_basics.pdf
