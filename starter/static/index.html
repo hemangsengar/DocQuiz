@@ -297,6 +297,14 @@ async function startQuiz() {
 
 async function loadNextQuestion() {
   const res = await fetch("/quiz/next");
+  if (!res.ok) {
+    $("quiz-screen").classList.remove("hidden");
+    $("options").innerHTML = "";
+    $("question-text").textContent =
+      "Server error on /quiz/next — check the uvicorn terminal. " +
+      "(Is TODO 8 in adaptive.py filled in?)";
+    return;
+  }
   const q = await res.json();
 
   if (q.done) { showDone(); return; }
