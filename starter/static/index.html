@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocQuiz</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0f172a; color: #e2e8f0;
+    min-height: 100vh; display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .app { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .tagline { color: #94a3b8; margin-bottom: 28px; }
+  .card {
+    background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 16px;
+  }
+  .hidden { display: none; }
+  button {
+    font: inherit; border: none; border-radius: 8px; cursor: pointer;
+    padding: 12px 18px; background: #3b82f6; color: white;
+  }
+  button:hover { background: #2563eb; }
+  button:disabled { background: #475569; cursor: default; }
+  .option {
+    display: block; width: 100%; text-align: left; margin-top: 10px;
+    background: #334155; color: #e2e8f0;
+  }
+  .option:hover { background: #475569; }
+  .option.correct { background: #166534; }
+  .option.wrong { background: #991b1b; }
+  .meta { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tag {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 999px; background: #334155;
+    color: #94a3b8;
+  }
+  .question-text { font-size: 1.1rem; line-height: 1.5; margin-bottom: 6px; }
+  .explanation {
+    margin-top: 16px; padding: 14px; border-radius: 8px; background: #0f172a;
+    color: #cbd5e1; line-height: 1.5;
+  }
+  .explanation strong { color: #e2e8f0; }
+  #next-btn { margin-top: 16px; }
+  .topic-row { margin-top: 10px; }
+  .topic-name { font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px; }
+  .bar { height: 8px; border-radius: 4px; background: #334155; overflow: hidden; }
+  .bar-fill { height: 100%; background: #3b82f6; }
+  #status { color: #94a3b8; margin-top: 12px; }
+  input[type="file"] { color: #94a3b8; margin-bottom: 12px; display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>DocQuiz</h1>
+  <p class="tagline">Your notes, turned into an adaptive quiz.</p>
+
+  <!-- Screen 1: upload -->
+  <div class="card" id="upload-screen">
+    <input type="file" id="pdf-input" accept=".pdf">
+    <button id="upload-btn">Generate quiz</button>
+    <p id="status"></p>
+  </div>
+
+  <!-- Screen 2: quiz -->
+  <div class="card hidden" id="quiz-screen">
+    <div class="meta">
+      <span class="tag" id="topic-tag"></span>
+      <span class="tag" id="difficulty-tag"></span>
+    </div>
+    <p class="question-text" id="question-text"></p>
+    <div id="options"></div>
+    <div class="explanation hidden" id="explanation"></div>
+    <button class="hidden" id="next-btn">Next question</button>
+  </div>
+
+  <!-- Screen 3: progress / done -->
+  <div class="card hidden" id="progress-screen">
+    <p id="progress-summary"></p>
+    <div id="topic-bars"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let currentQuestionId = null;
+
+$("upload-btn").onclick = async () => {
+  const file = $("pdf-input").files[0];
+  if (!file) { $("status").textContent = "Pick a PDF first."; return; }
+
+  $("upload-btn").disabled = true;
+  $("status").textContent = "Reading PDF and generating questions… (~10s)";
+
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/upload", { method: "POST", body: form });
+  const data = await res.json();
+
+  if (!res.ok) {
+    $("status").textContent = "Error: " + data.detail;
+    $("upload-btn").disabled = false;
+    return;
+  }
+  $("upload-screen").classList.add("hidden");
+  loadNextQuestion();
+};
+
+async function loadNextQuestion() {
+  const res = await fetch("/quiz/next");
+  const q = await res.json();
+
+  if (q.done) { showProgress(true); return; }
+
+  currentQuestionId = q.id;
+  $("topic-tag").textContent = q.topic;
+  $("difficulty-tag").textContent = q.difficulty;
+  $("question-text").textContent = q.question;
+  $("explanation").classList.add("hidden");
+  $("next-btn").classList.add("hidden");
+
+  const optionsDiv = $("options");
+  optionsDiv.innerHTML = "";
+  for (const [letter, text] of Object.entries(q.options)) {
+    const btn = document.createElement("button");
+    btn.className = "option";
+    btn.textContent = letter + ". " + text;
+    btn.onclick = () => submitAnswer(letter, btn);
+    optionsDiv.appendChild(btn);
+  }
+  $("quiz-screen").classList.remove("hidden");
+  showProgress(false);
+}
+
+async function submitAnswer(letter, clickedBtn) {
+  document.querySelectorAll(".option").forEach(b => b.disabled = true);
+
+  const res = await fetch("/answer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question_id: currentQuestionId, selected: letter }),
+  });
+  const result = await res.json();
+
+  document.querySelectorAll(".option").forEach(b => {
+    if (b.textContent.startsWith(result.correct_answer + ".")) b.classList.add("correct");
+  });
+  if (!result.correct) clickedBtn.classList.add("wrong");
+
+  $("explanation").innerHTML =
+    "<strong>" + (result.correct ? "Correct!" : "Not quite.") + "</strong> " + result.explanation;
+  $("explanation").classList.remove("hidden");
+  $("next-btn").classList.remove("hidden");
+}
+
+$("next-btn").onclick = loadNextQuestion;
+
+async function showProgress(finished) {
+  const res = await fetch("/progress");
+  const p = await res.json();
+
+  $("progress-summary").textContent = finished
+    ? "Quiz complete — " + p.answered + " questions answered."
+    : p.answered + " / " + p.total_questions + " answered";
+
+  const bars = $("topic-bars");
+  bars.innerHTML = "";
+  for (const [topic, s] of Object.entries(p.topics)) {
+    const pct = Math.round((s.correct / s.total) * 100);
+    bars.insertAdjacentHTML("beforeend",
+      '<div class="topic-row"><div class="topic-name">' + topic + " — " + pct +
+      '% correct</div><div class="bar"><div class="bar-fill" style="width:' +
+      pct + '%"></div></div></div>');
+  }
+  if (finished) $("quiz-screen").classList.add("hidden");
+  $("progress-screen").classList.remove("hidden");
+}
+</script>
+</body>
+</html>
