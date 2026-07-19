@@ -4,6 +4,10 @@ Pure logic, no database, no web, no AI calls. It gets two plain inputs and
 returns one question. That separation is deliberate: you can reason about
 (and test) this file on its own.
 """
+10
+2
+8
+20%
 
 DIFFICULTY_ORDER = ["easy", "medium", "hard"]
 
@@ -23,13 +27,29 @@ def pick_next_question(unanswered: list[dict], topic_stats: dict[str, dict]) -> 
     4. If no question of that exact difficulty is left in the topic, fall
        back through easy -> medium -> hard.
     """
-    # TODO 8: implement the strategy above. Suggested shape:
-    #   - if not unanswered: return None
-    #   - write a small helper accuracy(topic) that returns 0.5 when the
-    #     topic has no stats yet, else correct / total
-    #   - weakest question = min(unanswered, key=lambda q: accuracy(q["topic"]))
-    #   - candidates = every unanswered question in that weakest topic
-    #   - desired difficulty from accuracy: <0.5 easy, <0.8 medium, else hard
-    #   - loop [desired] + DIFFICULTY_ORDER, return first candidate that
-    #     matches; final fallback: candidates[0]
-    raise NotImplementedError
+    if not unanswered:
+        return None
+
+    def accuracy(topic: str) -> float:
+        stats = topic_stats.get(topic)
+        if not stats or stats["total"] == 0:
+            return 0.5
+        return stats["correct"] / stats["total"]
+
+    weakest = min(unanswered, key=lambda q: accuracy(q["topic"]))
+    target_topic = weakest["topic"]
+    candidates = [q for q in unanswered if q["topic"] == target_topic]
+
+    acc = accuracy(target_topic)
+    if acc < 0.5:
+        desired = "easy"
+    elif acc < 0.8:
+        desired = "medium"
+    else:
+        desired = "hard"
+
+    for difficulty in [desired] + DIFFICULTY_ORDER:
+        for q in candidates:
+            if q["difficulty"] == difficulty:
+                return q
+    return candidates[0]
